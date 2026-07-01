@@ -11,7 +11,7 @@ resource "aws_default_vpc" "default" {
 }
 
 
-resource aws_security_group my_security_group {
+resource "aws_security_group" "my_security_group" {
   name        = "automate-sg"
   description = "this will add a Tf generated security group"
   vpc_id      = aws_default_vpc.default.id # interpolation
@@ -31,7 +31,7 @@ resource aws_security_group my_security_group {
     cidr_blocks = ["0.0.0.0/0"]
     description = "allow http"
   }
-  
+
   ingress {
     from_port   = 8000
     to_port     = 8000
@@ -56,18 +56,23 @@ resource aws_security_group my_security_group {
 # ec2 instance
 
 resource "aws_instance" "my_instance" {
-    key_name  = aws_key_pair.my_key.key_name
-    security_groups = [aws_security_group.my_security_group.name]
-    instance_type = var.ec2_instance_type
-    ami = var.ec2_ami_id
+  for_each = tomap({
+    "tws-junoon-automate-micro" = "t3.micro"
+    "tws-junoon-automate-small" = "t3.small"
+  })
+  key_name        = aws_key_pair.my_key.key_name
+  security_groups = [aws_security_group.my_security_group.name]
+  instance_type   = each.value
+  ami             = var.ec2_ami_id
+  user_data       = file("install_nginx.sh")
 
-    root_block_device {
-        volume_size = var.ec2_root-storage_size
-        volume_type = "gp3"
-    }
-    tags = {
-        Name = "tws-junoon-automate"
-    } 
-}     
+  root_block_device {
+    volume_size = var.ec2_root-storage_size
+    volume_type = "gp3"
+  }
+  tags = {
+    Name = each.key
+  }
+}
 
 
